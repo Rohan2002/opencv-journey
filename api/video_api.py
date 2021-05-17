@@ -1,22 +1,20 @@
 import sys
+from typing import Union
 
 import cv2
 from sys import platform
 import os
 from datetime import datetime
 
+from util import check_dir
+
 print("Open CV Version", cv2.__version__)
 
 
-def read_video(webcam: bool):
-    input_video_path = 'videos'
+def read_video(webcam: bool, gray: bool, text: bool):
+    input_video_path = '../videos'
 
-    if not os.path.isdir(input_video_path):
-        os.mkdir(input_video_path)
-        print('Videos directory is created and now put a video in the directory')
-        sys.exit()
-    if len(os.listdir(input_video_path)) == 0:
-        print("Videos directory is empty!")
+    if not check_dir(input_video_path):
         sys.exit()
 
     video_file_path = f'{input_video_path}/{os.listdir(input_video_path)[0]}'
@@ -31,8 +29,24 @@ def read_video(webcam: bool):
     try:
         while True:
             ret, frame = videoCaptureInstance.read()  # ret = True/False availability of frame and frame = multiple picture frames
-            convert_frame_to_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            cv2.imshow('video_window', convert_frame_to_gray)
+
+            if not ret:
+                break
+
+            # Text
+            if text:
+                resolution_text = 'Width: ' + str(
+                    videoCaptureInstance.get(cv2.CAP_PROP_FRAME_WIDTH)) + " Height: " + str(
+                    videoCaptureInstance.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                date_text = str(datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+                frame = put_text_frame(frame, (10, 30), resolution_text, 'black')
+                frame = put_text_frame(frame, (10, 60), date_text, 'black')
+            # Colorful
+            if gray:
+                convert_frame_to_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                cv2.imshow('video_window', convert_frame_to_gray)
+            else:
+                cv2.imshow('video_window', frame)
 
             client_key_press = cv2.waitKey(1) & 0xFF
 
@@ -106,8 +120,25 @@ def write_video(frames: int, videoCaptureInstance: cv2.VideoCapture, extension: 
         print('Unexpected error occurred with reading image and error code is', cv2.error.code)
 
 
+def set_resolution(videoCaptureInstance: cv2.VideoCapture, width: int, height: int) -> tuple:
+    videoCaptureInstance.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    videoCaptureInstance.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    return str(videoCaptureInstance.get(cv2.CV_CAP_PROP_FRAME_WIDTH)), str(
+        videoCaptureInstance.get(cv2.CV_CAP_PROP_FRAME_HEIGHT))
+
+
+def put_text_frame(frame, text_position, text: str, color: str):
+    text_font = cv2.FONT_HERSHEY_SIMPLEX
+    text_font_scale = 1
+    text_line_type = 2
+    text_font_color = 0
+    if color.lower() == 'white':
+        text_font_color = (255, 255, 255)
+    return cv2.putText(frame, text, text_position, text_font, text_font_scale, text_font_color, text_line_type)
+
+
 if __name__ == '__main__':
-    read_video(True)  # True for webcam access or false
+    read_video(True, False, True)  # webcam, gray, text
 
     webcamCaptureInstance = cv2.VideoCapture(0)
     # write_video(20, webcamCaptureInstance, 'avi')
